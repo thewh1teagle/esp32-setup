@@ -8,9 +8,13 @@
 git clone https://github.com/esp32-setup
 cd esp32-setup
 ```
-1. Build example 
+1. Build example with your own COM port
 ```
-
+xcopy /e /i %IDF_PATH%\examples\get-started\hello_world hello_world
+cd hello_world
+idf.py set-target esp32
+idf.py -p COM flash
+idf.py monitor -p COM
 ```
 That's it! 🎉
 
