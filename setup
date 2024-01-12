@@ -1,0 +1,112 @@
+#!/bin/bash
+
+# **** NOT USED *******
+
+NAME="espressif"
+SDK_NAME="esp-idf"
+SDK_GIT=https://github.com/espressif/$SDK_NAME.git
+IDF_PATH=$MINGW_PREFIX/opt/$SDK_NAME
+PKGDIR="$(pwd)/.package"
+TOOLCHAIN=xtensa-esp32-elf-win32-1.22.0-97-gc752ad5-5.2.0
+TOOLCHAIN_NAME=xtensa-esp32-elf
+
+
+function check_exists() {
+    if [ -d "$IDF_PATH" ]; then
+        echo "Looks like $NAME already in $IDF_PATH"
+        read -p "Abort? (y/n): " res
+        if [ "$res" = "y" ] || [ "$res" = "yes" ] || [ "$res" = "2" ]; then
+            exit 0
+        fi
+    fi
+}
+
+
+# Used for serial monitor until msys2 merge
+function setup_serust() {
+    realname="serust"
+    name=serust_v0.0.1_x86_64-pc-windows-gnu
+    ver="v0.0.1"
+    wget  -q -nc --show-progress "https://github.com/thewh1teagle/serust/releases/download/$ver/$name.zip"
+    unzip -qq $name.zip -d $name
+    
+    mv $name/$realname $MINGW_PREFIX/bin/$realname
+    rm -rf $name.zip $name
+}
+
+function setup_sdk() {
+
+    pacman --noconfirm -S --needed unzip winpty gettext-devel gcc git make ncurses-devel flex bison gperf vim \
+        $MINGW_PACKAGE_PREFIX-{python-pip,python-cryptography}
+    git clone $SDK_GIT --depth 1 $IDF_PATH
+    git submodule update --init $IDF_PATH
+
+
+    targets=$(python $IDF_PATH/tools/install_util.py extract targets)
+    features=$(python $IDF_PATH/tools/install_util.py extract features)
+    python $IDF_PATH/tools/idf_tools.py install --targets=$targets
+    python $IDF_PATH/tools/idf_tools.py install-python-env --features=$features
+    
+    python -m pip install -r "$IDF_PATH/requirements.txt"
+
+    # Install profile script
+    cat > $MINGW_PREFIX/etc/profile.d/$SDK_NAME.sh << EOF
+# This file was created by ESP-IDF setup script
+# and will be overwritten if that script is run again.
+export IDF_PATH=\$MINGW_PREFIX/share/$SDK_NAME
+EOF
+
+}
+
+# xtensa-esp32-elf compiler
+function setup_toolchain() {
+
+    # if IDF_PATH is set, install requirements now as well
+
+    python -m pip install -r "$IDF_PATH/requirements.txt"
+
+    # Automatically download precompiled toolchain, unpack at /opt/xtensa-esp32-elf/
+
+    echo "Downloading precompiled toolchain $TOOLCHAIN..."
+    curl -LO --retry 10 http://dl.espressif.com/dl/$TOOLCHAIN.zip
+    rm -rf $MINGW_PREFIX/opt/$TOOLCHAIN_NAME  # for upgrades
+    unzip $TOOLCHAIN_ZIP
+    mv  $TOOLCHAIN_NAME $MINGW_PREFIX/opt/
+    rm $TOOLCHAIN_ZIP
+
+    # install profile for path
+    cat > $MINGW_PREFIX/etc/profile.d/$NAME-$TOOLCHAIN_NAME.sh << EOF
+# This file was created by ESP-IDF setup script
+# and will be overwritten if that script is run again.
+export PATH="\$MINGW_PREFIX/opt/xtensa-esp32-elf/bin:\$PATH"
+EOF
+
+    # clean up pacman package cache to save some disk space
+    # pacman --noconfirm -Scc
+    cat << EOF
+************************************************
+MSYS2 environment is now ready to use ESP-IDF.
+
+Please execute source /etc/profile
+************************************************
+EOF
+
+}
+
+
+function run() {
+    rm -rf $PKGDIR
+    mkdir -p $PKGDIR
+    pushd $PKGDIR
+    # start install
+    check_exists
+    setup_serust
+    setup_toolchain
+    # exit from build
+    popd 
+    rm -rf $PKGDIR
+}
+
+
+
+

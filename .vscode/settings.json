@@ -1,0 +1,13 @@
+{
+  "terminal.integrated.defaultProfile.windows": "MSYS2 UCRT64",
+  "terminal.integrated.profiles.windows": {
+    "MSYS2 UCRT64": {
+      "path": "C:\\Windows\\system32\\cmd.exe",
+      "args": [
+        "/k",
+        "C:\\Espressif\\idf_cmd_init.bat",
+        "esp-idf-0e2582fd252b057fc2c285b273065d53",
+      ],
+    },
+  }  
+}
